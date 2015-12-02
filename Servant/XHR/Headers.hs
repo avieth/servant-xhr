@@ -25,16 +25,17 @@ module Servant.XHR.Headers where
 import GHC.TypeLits
 import Data.Proxy
 import qualified Data.Text as T
+import Data.Text.Encoding
 import Servant.API
 import Servant.XHR.Body
---import Network.HTTP.Media.MimeType
+import Web.HttpApiData
 
 -- | Value-level representation of the capture parts of a path.
 --   The type parameter indicates the named, types parts of the path.
 data XHRServantHeaders (headers :: [(Symbol, *)]) where
     XHRServantHeadersNil :: XHRServantHeaders '[]
     XHRServantHeadersCons
-        :: ( ToText t
+        :: ( ToHttpApiData t
            , KnownSymbol name
            )
         => Proxy name
@@ -51,7 +52,7 @@ type family XHRServantHeadersDrop (name :: Symbol) (ty :: *) (path :: [(Symbol, 
 --   value can be extracted from an XHRServantPath, and that an XHRServantPath
 --   can be shrunk to exclude it.
 class
-    ( ToText ty
+    ( ToHttpApiData ty
     ) => InXHRServantHeaders (name :: Symbol) (ty :: *) (headers :: [(Symbol, *)])
   where
     xhrServantHeadersGetValue :: Proxy name -> Proxy ty -> XHRServantHeaders headers -> ty
@@ -62,7 +63,7 @@ class
         -> XHRServantHeaders (XHRServantHeadersDrop name ty headers)
 
 instance {-# OVERLAPS #-}
-    ( ToText ty
+    ( ToHttpApiData ty
     ) => InXHRServantHeaders name ty ( '(name, ty) ': rest )
   where
     xhrServantHeadersGetValue _ _ path = case path of
@@ -103,8 +104,8 @@ instance {-# OVERLAPS #-}
     , KnownSymbol name
     ) => MakeXHRServantHeaders ( Header name t :> servantRoute ) headers
   where
-    makeXHRServantHeaders _ headers = ( toText (symbolVal (Proxy :: Proxy name))
-                                      , toText (xhrServantHeadersGetValue (Proxy :: Proxy name) (Proxy :: Proxy t) headers)
+    makeXHRServantHeaders _ headers = ( decodeUtf8 (toHeader (symbolVal (Proxy :: Proxy name)))
+                                      , decodeUtf8 (toHeader (xhrServantHeadersGetValue (Proxy :: Proxy name) (Proxy :: Proxy t) headers))
                                       )
                                     : makeXHRServantHeaders (Proxy :: Proxy servantRoute) (xhrServantHeadersDrop (Proxy :: Proxy name) (Proxy :: Proxy t) headers)
 

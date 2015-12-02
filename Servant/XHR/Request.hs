@@ -29,8 +29,9 @@ import Servant.XHR.Query
 import Servant.XHR.Body
 import Reactive.DOM.XHR
 import Servant.API
+import Web.HttpApiData
 
-type Origin = T.Text
+type Location = T.Text
 
 data XHRServantRequest headers path query contentType body where
     XHRServantRequest
@@ -48,7 +49,7 @@ xhrServantRequest = XHRServantRequest XHRServantHeadersNil
 
 xhrHeader
     :: ( KnownSymbol name
-       , ToText t
+       , ToHttpApiData t
        )
     => Proxy name
     -> t
@@ -59,7 +60,7 @@ xhrHeader name t (XHRServantRequest headers path query body) =
 
 xhrCapture
     :: ( KnownSymbol name
-       , ToText t
+       , ToHttpApiData t
        )
     => Proxy name
     -> t
@@ -70,7 +71,7 @@ xhrCapture name t (XHRServantRequest headers path query body) =
 
 xhrQuery
     :: ( KnownSymbol name
-       , ToText t
+       , ToHttpApiData t
        )
     => Proxy name
     -> t
@@ -91,10 +92,11 @@ xhrBody ctype body (XHRServantRequest headers path query _) =
 class MakeXHRServantRequest servantRoute headers path query contentType body where
     makeXHRServantRequest
         :: Proxy servantRoute
-        -> Origin
+        -> Location
         -> XHRServantRequest headers path query contentType body
         -> XHRRequest
 
+-- TODO Accept header, from the Get/Post/Put/Delete type.
 instance
     ( MakeXHRServantMethod servantRoute
     , MakeXHRServantHeaders servantRoute headers

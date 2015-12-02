@@ -26,13 +26,14 @@ import GHC.TypeLits
 import Data.Proxy
 import qualified Data.Text as T
 import Servant.API
+import Web.HttpApiData
 
 -- | Value-level representation of the capture parts of a path.
 --   The type parameter indicates the named, types parts of the path.
 data XHRServantPath (path :: [(Symbol, *)]) where
     XHRServantPathNil :: XHRServantPath '[]
     XHRServantPathCons
-        :: ( ToText t
+        :: ( ToHttpApiData t
            , KnownSymbol name
            )
         => Proxy name
@@ -49,7 +50,7 @@ type family XHRServantPathDrop (name :: Symbol) (ty :: *) (path :: [(Symbol, *)]
 --   value can be extracted from an XHRServantPath, and that an XHRServantPath
 --   can be shrunk to exclude it.
 class
-    ( ToText ty
+    ( ToHttpApiData ty
     ) => InXHRServantPath (name :: Symbol) (ty :: *) (path :: [(Symbol, *)])
   where
     xhrServantPathGetValue :: Proxy name -> Proxy ty -> XHRServantPath path -> ty
@@ -60,7 +61,7 @@ class
         -> XHRServantPath (XHRServantPathDrop name ty path)
 
 instance {-# OVERLAPS #-}
-    ( ToText ty
+    ( ToHttpApiData ty
     ) => InXHRServantPath name ty ( '(name, ty) ': rest )
   where
     xhrServantPathGetValue _ _ path = case path of
@@ -105,7 +106,7 @@ instance {-# OVERLAPS #-}
     ) => MakeXHRServantPath ( Capture name t :> servantRoute ) (p ': ps)
   where
     makeXHRServantPathParts _ path =
-          toText (xhrServantPathGetValue (Proxy :: Proxy name) (Proxy :: Proxy t) path)
+          toUrlPiece (xhrServantPathGetValue (Proxy :: Proxy name) (Proxy :: Proxy t) path)
         : makeXHRServantPathParts (Proxy :: Proxy servantRoute) (xhrServantPathDrop (Proxy :: Proxy name) (Proxy :: Proxy t) path)
 
 

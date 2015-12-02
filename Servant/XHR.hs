@@ -12,7 +12,13 @@ Portability : non-portable (GHC only)
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Servant.XHR where
+module Servant.XHR (
+
+      servantXHR
+    , module Servant.XHR.Request
+    , module Servant.XHR.Response
+
+    ) where
 
 import Data.Proxy
 import Reactive.Sequence
@@ -29,7 +35,7 @@ servantXHR
        , AllCTUnrender resAccept resBody
        )
     => Proxy servantRoute
-    -> Origin
+    -> Location
     -> XHRServantRequest headers path query contentType reqBody
     -> SEvent (XHRServantResponse resBody)
 servantXHR proxyRoute origin = fmap output . xhr . input

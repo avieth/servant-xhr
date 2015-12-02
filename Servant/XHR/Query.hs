@@ -27,13 +27,14 @@ import GHC.TypeLits
 import Data.Proxy
 import qualified Data.Text as T
 import Servant.API
+import Web.HttpApiData
 
 -- | Value-level representation of the capture parts of a query.
 --   The type parameter indicates the named, types parts of the query.
 data XHRServantQuery (query :: [(Symbol, *)]) where
     XHRServantQueryNil :: XHRServantQuery '[]
     XHRServantQueryCons
-        :: ( ToText t
+        :: ( ToHttpApiData t
            , KnownSymbol name
            )
         => Proxy name
@@ -59,7 +60,7 @@ type family XHRServantQueryDropMultiple (name :: Symbol) (ty :: *) (query :: [(S
 --   value can be extracted from an XHRServantQuery, and that an XHRServantQuery
 --   can be shrunk to exclude it.
 class
-    ( ToText ty
+    ( ToHttpApiData ty
     ) => InXHRServantQuery (name :: Symbol) (ty :: *) (query :: [(Symbol, *)])
   where
     xhrServantQueryGetValue :: Proxy name -> Proxy ty -> XHRServantQuery query -> ty
@@ -70,7 +71,7 @@ class
         -> XHRServantQuery (XHRServantQueryDrop name ty query)
 
 instance {-# OVERLAPS #-}
-    ( ToText ty
+    ( ToHttpApiData ty
     ) => InXHRServantQuery name ty ( '(name, ty) ': rest )
   where
     xhrServantQueryGetValue _ _ query = case query of
@@ -91,7 +92,7 @@ instance {-# OVERLAPS #-}
 
 -- | Like InXHRServantQuery except that 0 or more values are found/dropped.
 class
-    ( ToText ty
+    ( ToHttpApiData ty
     ) => InXHRServantQueryMultiple (name :: Symbol) (ty :: *) (query :: [(Symbol, *)])
   where
     xhrServantQueryGetValueMultiple
@@ -106,14 +107,14 @@ class
         -> XHRServantQuery (XHRServantQueryDropMultiple name ty query)
 
 instance {-# OVERLAPS #-}
-    ( ToText ty
+    ( ToHttpApiData ty
     ) => InXHRServantQueryMultiple name ty '[]
   where
     xhrServantQueryGetValueMultiple _ _ _ = []
     xhrServantQueryDropMultiple _ _ _ = XHRServantQueryNil
 
 instance {-# OVERLAPS #-}
-    ( ToText ty
+    ( ToHttpApiData ty
     , InXHRServantQueryMultiple name ty rest
     ) => InXHRServantQueryMultiple name ty ( '(name, ty) ': rest )
   where
@@ -180,7 +181,7 @@ instance {-# OVERLAPS #-}
     ) => MakeXHRServantQuery ( QueryFlag name :> servantRoute ) (q ': qs)
   where
     makeXHRServantQueryParts _ query =
-          (toText (symbolVal (Proxy :: Proxy name)), Left (xhrServantQueryGetValue (Proxy :: Proxy name) (Proxy :: Proxy Bool) query))
+          (toQueryParam (symbolVal (Proxy :: Proxy name)), Left (xhrServantQueryGetValue (Proxy :: Proxy name) (Proxy :: Proxy Bool) query))
         : makeXHRServantQueryParts (Proxy :: Proxy servantRoute) (xhrServantQueryDrop (Proxy :: Proxy name) (Proxy :: Proxy Bool) query)
 
 instance {-# OVERLAPS #-}
@@ -190,7 +191,7 @@ instance {-# OVERLAPS #-}
     ) => MakeXHRServantQuery ( QueryParam name t :> servantRoute ) (q ': qs)
   where
     makeXHRServantQueryParts _ query =
-          (toText (symbolVal (Proxy :: Proxy name)), Right (toText (xhrServantQueryGetValue (Proxy :: Proxy name) (Proxy :: Proxy t) query)))
+          (toQueryParam (symbolVal (Proxy :: Proxy name)), Right (toQueryParam (xhrServantQueryGetValue (Proxy :: Proxy name) (Proxy :: Proxy t) query)))
         : makeXHRServantQueryParts (Proxy :: Proxy servantRoute) (xhrServantQueryDrop (Proxy :: Proxy name) (Proxy :: Proxy t) query)
 
 instance {-# OVERLAPS #-}
@@ -202,9 +203,9 @@ instance {-# OVERLAPS #-}
     makeXHRServantQueryParts _ query =
         let multiple :: [t]
             multiple = xhrServantQueryGetValueMultiple (Proxy :: Proxy name) (Proxy :: Proxy t) query
-            key = toText (symbolVal (Proxy :: Proxy name))
+            key = toQueryParam (symbolVal (Proxy :: Proxy name))
             makePart :: t -> (T.Text, Either Bool T.Text)
-            makePart t = (key, Right (toText t))
+            makePart t = (key, Right (toQueryParam t))
             parts :: [(T.Text, Either Bool T.Text)]
             parts = makePart <$> multiple
             theRest = makeXHRServantQueryParts (Proxy :: Proxy servantRoute) (xhrServantQueryDropMultiple (Proxy :: Proxy name) (Proxy :: Proxy t) query)

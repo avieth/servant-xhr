@@ -63,11 +63,15 @@ makeXHRServantResponse
     -> Proxy body
     -> XHRResponse
     -> XHRServantResponse body
-makeXHRServantResponse proxyCtypes proxyBody response = case xhrResponseStatus response of
-    200 -> case handleCTypeH proxyCtypes (getContentType response) (getResponseBody response) of
-               Just (Right t) -> XHRServantResponseOK t
-               _ -> XHRServantResponseError response
-    _ -> XHRServantResponseError response
+makeXHRServantResponse proxyCtypes proxyBody response =
+    if isOK
+    then case handleCTypeH proxyCtypes (getContentType response) (getResponseBody response) of
+             Just (Right t) -> XHRServantResponseOK t
+             _ -> XHRServantResponseError response
+    else XHRServantResponseError response
+  where
+    responseCode = xhrResponseStatus response
+    isOK = responseCode < 300 && responseCode > 200
 
 getContentType :: XHRResponse -> BL.ByteString
 getContentType response =
