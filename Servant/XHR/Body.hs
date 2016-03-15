@@ -19,6 +19,7 @@ Portability : non-portable (GHC only)
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Servant.XHR.Body where
 
@@ -51,6 +52,14 @@ instance XHRServantCompatibleBody Post body
 instance XHRServantCompatibleBody Put body
 instance XHRServantCompatibleBody Delete body
 
+-- | Pick out the request body content types and type, if there is a request
+--   body at all.
+type family RequestBodyType servantRoute :: Maybe ([*], *) where
+    RequestBodyType (ReqBody contentTypes body) = 'Just '(contentTypes, body)
+    RequestBodyType (ReqBody contentTypes body :> rest) = 'Just '(contentTypes, body)
+    RequestBodyType (anything :> rest) = RequestBodyType rest
+    RequestBodyType otherwise = 'Nothing
+
 -- | This class should be satisfied when the route has at least one
 --   ReqBody in it. If there's more than one, the leftmost one wins, but
 --   this is a silly thing to do so we don't worry about it.
@@ -60,38 +69,30 @@ class MakeXHRServantBody servantRoute contentType body where
         -> XHRServantBody contentType body
         -> Maybe T.Text
 
-instance {-# OVERLAPS #-}
+instance
+    ( XHRServantBodyCompatible (RequestBodyType servantRoute) contentType body
+    ) => MakeXHRServantBody servantRoute contentType body
+  where
+    makeXHRServantBody _ =
+        makeXHRServantBody_ (Proxy :: Proxy (RequestBodyType servantRoute))
+
+class XHRServantBodyCompatible (reqBodyType :: Maybe ([*], *)) contentType body where
+    makeXHRServantBody_
+        :: Proxy reqBodyType
+        -> XHRServantBody contentType body
+        -> Maybe T.Text
+
+instance
     ( HasContentType contentTypes contentType
     , MimeRender contentType body
-    ) => MakeXHRServantBody ( ReqBody contentTypes body ) contentType (NonEmptyBody body)
+    ) => XHRServantBodyCompatible ('Just '(contentTypes, body)) contentType (NonEmptyBody body)
   where
-    makeXHRServantBody _ (XHRServantBodyNonEmpty proxyContentType body) =
+    makeXHRServantBody_ _ (XHRServantBodyNonEmpty proxyContentType body) =
         -- TODO handle exceptions in decodeUtf8.
         Just (decodeUtf8 (mimeRender proxyContentType body))
 
-instance {-# OVERLAPS #-}
-    ( HasContentType contentTypes contentType
-    , MimeRender contentType body
-    ) => MakeXHRServantBody ( ReqBody contentTypes body :> servantRoute ) contentType (NonEmptyBody body)
-  where
-    makeXHRServantBody _ (XHRServantBodyNonEmpty proxyContentType body) =
-        -- TODO handle exceptions in decodeUtf8
-        Just (decodeUtf8 (mimeRender proxyContentType body))
-
-instance {-# OVERLAPS #-}
-    ( MakeXHRServantBody servantRoute contentType EmptyBody
-    ) => MakeXHRServantBody ( anything :> servantRoute ) contentType EmptyBody
-  where
-    makeXHRServantBody _ body = makeXHRServantBody (Proxy :: Proxy servantRoute) body
-
-instance {-# OVERLAPS #-}
-    ( MakeXHRServantBody servantRoute contentType (NonEmptyBody body)
-    ) => MakeXHRServantBody ( anything :> servantRoute ) contentType (NonEmptyBody body)
-  where
-    makeXHRServantBody _ body = makeXHRServantBody (Proxy :: Proxy servantRoute) body
-
-instance {-# OVERLAPS #-}
+instance
     (
-    ) => MakeXHRServantBody ( anything ) contentType EmptyBody
+    ) => XHRServantBodyCompatible 'Nothing contentType EmptyBody
   where
-    makeXHRServantBody _ XHRServantBodyEmpty = Nothing
+    makeXHRServantBody_ _ _ = Nothing
