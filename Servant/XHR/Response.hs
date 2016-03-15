@@ -71,7 +71,7 @@ makeXHRServantResponse proxyCtypes proxyBody response =
     else XHRServantResponseError response
   where
     responseCode = xhrResponseStatus response
-    isOK = responseCode < 300 && responseCode > 200
+    isOK = responseCode < 300 && responseCode >= 200
 
 getContentType :: XHRResponse -> BL.ByteString
 getContentType response =
