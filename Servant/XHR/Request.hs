@@ -119,6 +119,7 @@ instance
                            (T.concat [origin, "/", xhrPath, queryPart])
                            xhrHeaders
                            xhrBody
+                           Nothing
 
 {-
 type Example1 =
