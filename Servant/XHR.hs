@@ -21,24 +21,28 @@ module Servant.XHR (
     ) where
 
 import Data.Proxy
-import Reactive.Sequence
 import Reactive.DOM.XHR
+import Reactive.Banana.Combinators (Event)
+import Reactive.Banana.Frameworks (MomentIO)
 import Servant.XHR.Request
 import Servant.XHR.Response
 import Servant.API.ContentTypes
 
 servantXHR
-    :: forall servantRoute headers path query contentType reqBody resAccept resBody .
+    :: forall f g servantRoute headers path query contentType reqBody resAccept resBody .
        ( MakeXHRServantRequest servantRoute headers path query contentType reqBody
        , resBody ~ XHRServantResponseBodyType servantRoute
        , resAccept ~ XHRServantResponseAccept servantRoute
        , AllCTUnrender resAccept resBody
+       , Functor f
+       , Functor g
        )
     => Proxy servantRoute
     -> Location
-    -> XHRServantRequest headers path query contentType reqBody
-    -> SEvent (XHRServantResponse resBody)
-servantXHR proxyRoute origin = fmap output . xhr . input
+    -> (f XHRRequest -> g XHRResponse)
+    -> f (XHRServantRequest headers path query contentType reqBody)
+    -> g (XHRServantResponse resBody)
+servantXHR proxyRoute origin makeIt = fmap output . makeIt . fmap input
   where
     input :: XHRServantRequest headers path query contentType reqBody -> XHRRequest
     input = makeXHRServantRequest proxyRoute origin
