@@ -56,6 +56,11 @@ data XHRServantResponse body = XHRServantResponse {
     , xhrServantResponseParsedBody :: Maybe body
     }
 
+useResponseStatus :: [XHRStatus] -> XHRServantResponse body -> Maybe body
+useResponseStatus codes res =
+    let code = xhrResponseStatus (xhrServantResponseRaw res)
+    in  if elem code codes then xhrServantResponseParsedBody res else Nothing
+
 -- | Attempt to parse the body of an XHRResponse.
 makeXHRServantResponse
     :: ( AllCTUnrender contentTypes body )
