@@ -49,14 +49,14 @@ type family XHRServantResponseAccept servantRoute where
     XHRServantResponseAccept (Delete ctypes t :> rest) = ctypes
     XHRServantResponseAccept (any :> rest) = XHRServantResponseAccept rest
 
+-- | Just an XHRResponse but we'll try to parse the body to the type indicated
+--   by the servant route.
+data XHRServantResponse body = XHRServantResponse {
+      xhrServantResponseRaw :: XHRResponse
+    , xhrServantResponseParsedBody :: Maybe body
+    }
 
--- | You either get the parsed body, or the raw XHRResponse in case something
---   goes wrong (non-200 response, mismatched content type, or failure to
---   parse).
-data XHRServantResponse body where
-    XHRServantResponseError :: XHRResponse -> XHRServantResponse body
-    XHRServantResponseOK :: body -> XHRServantResponse body
-
+-- | Attempt to parse the body of an XHRResponse.
 makeXHRServantResponse
     :: ( AllCTUnrender contentTypes body )
     => Proxy contentTypes
@@ -64,11 +64,10 @@ makeXHRServantResponse
     -> XHRResponse
     -> XHRServantResponse body
 makeXHRServantResponse proxyCtypes proxyBody response =
-    if isOK
-    then case handleCTypeH proxyCtypes (getContentType response) (getResponseBody response) of
-             Just (Right t) -> XHRServantResponseOK t
-             _ -> XHRServantResponseError response
-    else XHRServantResponseError response
+    let parsedBody = case handleCTypeH proxyCtypes (getContentType response) (getResponseBody response) of
+            Just (Right t) -> Just t
+            _ -> Nothing
+    in  XHRServantResponse response parsedBody
   where
     responseCode = xhrResponseStatus response
     isOK = responseCode < 300 && responseCode >= 200

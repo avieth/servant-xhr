@@ -14,7 +14,7 @@ Portability : non-portable (GHC only)
 
 module Servant.XHR (
 
-      servantXHR
+      servantXHRHandler
     , module Servant.XHR.Request
     , module Servant.XHR.Response
 
@@ -28,24 +28,22 @@ import Servant.XHR.Request
 import Servant.XHR.Response
 import Servant.API.ContentTypes
 
-servantXHR
-    :: forall f g servantRoute headers path query contentType reqBody resAccept resBody .
+-- | An XHRHandler which uses the servant request and response types.
+--   You almost certainly want to exploit the Profunctor-ness of XHRHandler
+--   and use the servant request constructors like xhrQuery, xhrBody to
+--   change the input.
+servantXHRHandler
+    :: forall servantRoute headers path query contentType reqBody resAccept resBody .
        ( MakeXHRServantRequest servantRoute headers path query contentType reqBody
        , resBody ~ XHRServantResponseBodyType servantRoute
        , resAccept ~ XHRServantResponseAccept servantRoute
        , AllCTUnrender resAccept resBody
-       , Functor f
-       , Functor g
        )
     => Proxy servantRoute
     -> Location
-    -> (f XHRRequest -> g XHRResponse)
-    -> f (XHRServantRequest headers path query contentType reqBody)
-    -> g (XHRServantResponse resBody)
-servantXHR proxyRoute origin makeIt = fmap output . makeIt . fmap input
-  where
-    input :: XHRServantRequest headers path query contentType reqBody -> XHRRequest
-    input = makeXHRServantRequest proxyRoute origin
-
-    output :: XHRResponse -> XHRServantResponse resBody
-    output = makeXHRServantResponse (Proxy :: Proxy resAccept) (Proxy :: Proxy resBody)
+    -> XHRHandler (XHRServantRequest headers path query contentType reqBody)
+                  (XHRServantResponse resBody)
+servantXHRHandler proxyRoute location = xhrHandler $ \req ->
+    ( makeXHRServantRequest proxyRoute location req
+    , makeXHRServantResponse (Proxy :: Proxy resAccept) (Proxy :: Proxy resBody)
+    )
