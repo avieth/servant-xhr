@@ -16,14 +16,14 @@ build-type:          Simple
 cabal-version:       >=1.10
 
 library
-  exposed-modules:     Servant.XHR
-                     , Servant.XHR.Response
-                     , Servant.XHR.Path
-                     , Servant.XHR.Method
-                     , Servant.XHR.Body
-                     , Servant.XHR.Headers
-                     , Servant.XHR.Request
-                     , Servant.XHR.Query
+  exposed-modules:     Servant.Xhr
+                     , Servant.Xhr.Response
+                     , Servant.Xhr.Path
+                     , Servant.Xhr.Method
+                     , Servant.Xhr.Body
+                     , Servant.Xhr.Headers
+                     , Servant.Xhr.Request
+                     , Servant.Xhr.Query
   -- other-modules:       
   other-extensions:    AutoDeriveTypeable
                      , ScopedTypeVariables

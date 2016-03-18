@@ -1,5 +1,5 @@
 {-|
-Module      : Servant.XHR.Body
+Module      : Servant.Xhr.Body
 Description : Definitions for constructing the request body from servant types.
 Copyright   : (c) Alexander Vieth, 2015
 Licence     : BSD3
@@ -21,7 +21,7 @@ Portability : non-portable (GHC only)
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Servant.XHR.Body where
+module Servant.Xhr.Body where
 
 import GHC.TypeLits
 import Data.Proxy
@@ -32,12 +32,12 @@ import Servant.API
 data EmptyBody
 data NonEmptyBody body
 
-data XHRServantBody (contentType :: *) (body :: *) where
-    XHRServantBodyEmpty :: XHRServantBody contentType EmptyBody
-    XHRServantBodyNonEmpty
+data XhrServantBody (contentType :: *) (body :: *) where
+    XhrServantBodyEmpty :: XhrServantBody contentType EmptyBody
+    XhrServantBodyNonEmpty
         :: Proxy contentType
         -> body
-        -> XHRServantBody contentType (NonEmptyBody body)
+        -> XhrServantBody contentType (NonEmptyBody body)
 
 class HasContentType (contentTypes :: [*]) (contentType :: *)
 instance {-# OVERLAPS #-} HasContentType (c ': cs) c
@@ -46,11 +46,11 @@ instance {-# OVERLAPS #-}  HasContentType cs c => HasContentType (c' ': cs) c
 -- | An XMLHttpRequest will set the body of a GET or HEAD to null.
 --   This class ensures that a GET can have only the EmptyBody, so that if
 --   you try to give a body to a GET, the program won't compile
-class XHRServantCompatibleBody method body
-instance XHRServantCompatibleBody Get EmptyBody
-instance XHRServantCompatibleBody Post body
-instance XHRServantCompatibleBody Put body
-instance XHRServantCompatibleBody Delete body
+class XhrServantCompatibleBody method body
+instance XhrServantCompatibleBody Get EmptyBody
+instance XhrServantCompatibleBody Post body
+instance XhrServantCompatibleBody Put body
+instance XhrServantCompatibleBody Delete body
 
 -- | Pick out the request body content types and type, if there is a request
 --   body at all.
@@ -63,36 +63,36 @@ type family RequestBodyType servantRoute :: Maybe ([*], *) where
 -- | This class should be satisfied when the route has at least one
 --   ReqBody in it. If there's more than one, the leftmost one wins, but
 --   this is a silly thing to do so we don't worry about it.
-class MakeXHRServantBody servantRoute contentType body where
-    makeXHRServantBody
+class MakeXhrServantBody servantRoute contentType body where
+    makeXhrServantBody
         :: Proxy servantRoute
-        -> XHRServantBody contentType body
+        -> XhrServantBody contentType body
         -> Maybe T.Text
 
 instance
-    ( XHRServantBodyCompatible (RequestBodyType servantRoute) contentType body
-    ) => MakeXHRServantBody servantRoute contentType body
+    ( XhrServantBodyCompatible (RequestBodyType servantRoute) contentType body
+    ) => MakeXhrServantBody servantRoute contentType body
   where
-    makeXHRServantBody _ =
-        makeXHRServantBody_ (Proxy :: Proxy (RequestBodyType servantRoute))
+    makeXhrServantBody _ =
+        makeXhrServantBody_ (Proxy :: Proxy (RequestBodyType servantRoute))
 
-class XHRServantBodyCompatible (reqBodyType :: Maybe ([*], *)) contentType body where
-    makeXHRServantBody_
+class XhrServantBodyCompatible (reqBodyType :: Maybe ([*], *)) contentType body where
+    makeXhrServantBody_
         :: Proxy reqBodyType
-        -> XHRServantBody contentType body
+        -> XhrServantBody contentType body
         -> Maybe T.Text
 
 instance
     ( HasContentType contentTypes contentType
     , MimeRender contentType body
-    ) => XHRServantBodyCompatible ('Just '(contentTypes, body)) contentType (NonEmptyBody body)
+    ) => XhrServantBodyCompatible ('Just '(contentTypes, body)) contentType (NonEmptyBody body)
   where
-    makeXHRServantBody_ _ (XHRServantBodyNonEmpty proxyContentType body) =
+    makeXhrServantBody_ _ (XhrServantBodyNonEmpty proxyContentType body) =
         -- TODO handle exceptions in decodeUtf8.
         Just (decodeUtf8 (mimeRender proxyContentType body))
 
 instance
     (
-    ) => XHRServantBodyCompatible 'Nothing contentType EmptyBody
+    ) => XhrServantBodyCompatible 'Nothing contentType EmptyBody
   where
-    makeXHRServantBody_ _ _ = Nothing
+    makeXhrServantBody_ _ _ = Nothing
