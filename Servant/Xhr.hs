@@ -20,7 +20,10 @@ module Servant.Xhr (
 
     ) where
 
+import Prelude hiding (id, (.))
 import Data.Proxy
+import Control.Category
+import Control.Arrow
 import Reactive.DOM.Xhr
 import Reactive.Banana.Combinators (Event)
 import Reactive.Banana.Frameworks (MomentIO)
@@ -45,7 +48,9 @@ servantXhrHandler
     -> Location
     -> XhrHandler (XhrServantRequest headers path query contentType reqBody)
                   (XhrServantResponse resBody)
-servantXhrHandler proxyRoute location = xhrHandler $ \req ->
-    ( makeXhrServantRequest proxyRoute location req
-    , makeXhrServantResponse (Proxy :: Proxy resAccept) (Proxy :: Proxy resBody)
-    )
+servantXhrHandler proxyRoute location = arr input >>> xhrHandler >>> arr output
+  where
+    input :: XhrServantRequest headers path query contentType reqBody -> XhrRequest
+    input = makeXhrServantRequest proxyRoute location
+    output :: XhrResponse -> XhrServantResponse resBody
+    output = makeXhrServantResponse (Proxy :: Proxy resAccept) (Proxy :: Proxy resBody)
